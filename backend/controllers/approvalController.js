@@ -94,7 +94,7 @@ const approveQuotation = async (req, res) => {
     const approval = await Approval.findByIdAndUpdate(
       req.params.id,
       {
-        status: 'approved',
+        status: 'Approved',
         remarks,
         approvedAt: Date.now(),
       },
@@ -109,7 +109,7 @@ const approveQuotation = async (req, res) => {
     }
 
     // Update quotation status
-    await Quotation.findByIdAndUpdate(approval.quotationId._id, { status: 'accepted' });
+    await Quotation.findByIdAndUpdate(approval.quotationId._id, { status: 'Approved' });
 
     res.json({
       success: true,
@@ -130,7 +130,7 @@ const rejectQuotation = async (req, res) => {
     const approval = await Approval.findByIdAndUpdate(
       req.params.id,
       {
-        status: 'rejected',
+        status: 'Rejected',
         remarks,
         approvedAt: Date.now(),
       },
@@ -145,7 +145,7 @@ const rejectQuotation = async (req, res) => {
     }
 
     // Update quotation status
-    await Quotation.findByIdAndUpdate(approval.quotationId._id, { status: 'rejected' });
+    await Quotation.findByIdAndUpdate(approval.quotationId._id, { status: 'Rejected' });
 
     res.json({
       success: true,

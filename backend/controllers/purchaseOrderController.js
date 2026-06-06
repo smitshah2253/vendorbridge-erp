@@ -80,7 +80,7 @@ const createPurchaseOrder = async (req, res) => {
       subtotal,
       tax,
       totalAmount,
-      status: 'draft',
+      status: 'Draft',
     });
 
     const populatedPO = await PurchaseOrder.findById(purchaseOrder._id)

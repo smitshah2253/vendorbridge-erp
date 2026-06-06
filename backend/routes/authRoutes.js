@@ -3,6 +3,7 @@ const router = express.Router();
 const { signup, login, getMe } = require('../controllers/authController');
 const protect = require('../middleware/authMiddleware');
 const { body, validationResult } = require('express-validator');
+const { USER_ROLES, normalizeRole } = require('../constants/roles');
 
 const validateRequest = (req, res, next) => {
   const errors = validationResult(req);
@@ -16,7 +17,10 @@ router.post('/signup', [
   body('name').trim().notEmpty().withMessage('Name is required'),
   body('email').isEmail().withMessage('Valid email is required'),
   body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters long'),
-  body('role').isIn(['Procurement Officer', 'Vendor', 'Manager', 'Admin']).withMessage('Invalid role')
+  body('role').optional().trim().custom((value) => {
+    if (!value) return true;
+    return USER_ROLES.includes(normalizeRole(value));
+  }).withMessage(`Invalid role. Must be one of: ${USER_ROLES.join(', ')}`)
 ], validateRequest, signup);
 
 router.post('/login', [

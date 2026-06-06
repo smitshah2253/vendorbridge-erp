@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const generateToken = require('../config/jwt');
+const { USER_ROLES, normalizeRole } = require('../constants/roles');
 
 // @desc    Register user
 // @route   POST /api/auth/signup
@@ -7,6 +8,13 @@ const generateToken = require('../config/jwt');
 const signup = async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
+    const normalizedRole = normalizeRole(role);
+
+    if (!USER_ROLES.includes(normalizedRole)) {
+      return res.status(400).json({
+        message: `Invalid role. Must be one of: ${USER_ROLES.join(', ')}`,
+      });
+    }
 
     const userExists = await User.findOne({ email });
 
@@ -18,7 +26,7 @@ const signup = async (req, res) => {
       name,
       email,
       password,
-      role: role || 'Procurement Officer',
+      role: normalizedRole,
     });
 
     const token = generateToken(user._id);
@@ -34,6 +42,10 @@ const signup = async (req, res) => {
       },
     });
   } catch (error) {
+    if (error.name === 'ValidationError') {
+      const message = Object.values(error.errors).map((err) => err.message).join(', ');
+      return res.status(400).json({ message });
+    }
     res.status(500).json({ message: error.message });
   }
 };

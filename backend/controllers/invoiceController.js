@@ -77,7 +77,7 @@ const createInvoice = async (req, res) => {
       taxRate: purchaseOrder.taxRate || 18,
       totalAmount: purchaseOrder.totalAmount,
       dueDate: dueDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
-      status: 'draft',
+      status: 'Draft',
     });
 
     const populatedInvoice = await Invoice.findById(invoice._id)

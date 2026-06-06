@@ -26,10 +26,8 @@ app.use('/api/invoices', require('./routes/invoiceRoutes'));
 app.use('/api/activity', require('./routes/activityRoutes'));
 
 // Error handling middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ message: 'Something went wrong!', error: err.message });
-});
+const errorHandler = require('./middleware/errorMiddleware');
+app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
 

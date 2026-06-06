@@ -70,7 +70,7 @@ const getAnalytics = async (req, res) => {
       totalRFQs: await require('../models/RFQ').countDocuments(),
       totalQuotations: await require('../models/Quotation').countDocuments(),
       totalInvoices: await require('../models/Invoice').countDocuments(),
-      pendingApprovals: await require('../models/Approval').countDocuments({ status: 'pending' }),
+      pendingApprovals: await require('../models/Approval').countDocuments({ status: 'Pending' }),
       totalSpending: await require('../models/Invoice').aggregate([
         { $group: { _id: null, total: { $sum: '$totalAmount' } } }
       ]),

@@ -52,12 +52,11 @@ const invoiceSchema = new mongoose.Schema({
 });
 
 // Auto-generate invoice number before saving
-invoiceSchema.pre('save', async function (next) {
+invoiceSchema.pre('save', async function () {
   if (this.isNew) {
     const count = await mongoose.model('Invoice').countDocuments();
     this.invoiceNumber = `INV-${String(count + 1).padStart(4, '0')}`;
   }
-  next();
 });
 
 module.exports = mongoose.model('Invoice', invoiceSchema);

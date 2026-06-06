@@ -45,12 +45,11 @@ const purchaseOrderSchema = new mongoose.Schema({
 });
 
 // Auto-generate PO number before saving
-purchaseOrderSchema.pre('save', async function (next) {
+purchaseOrderSchema.pre('save', async function () {
   if (this.isNew) {
     const count = await mongoose.model('PurchaseOrder').countDocuments();
     this.poNumber = `PO-${String(count + 1).padStart(4, '0')}`;
   }
-  next();
 });
 
 module.exports = mongoose.model('PurchaseOrder', purchaseOrderSchema);

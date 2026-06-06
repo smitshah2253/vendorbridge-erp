@@ -42,7 +42,7 @@ router.post('/:id/email', protect, async (req, res) => {
     const result = await sendInvoiceEmail(invoice.vendorId.email, invoice.invoiceNumber, pdfPath);
 
     if (result.success) {
-      await Invoice.findByIdAndUpdate(req.params.id, { status: 'sent' });
+      await Invoice.findByIdAndUpdate(req.params.id, { status: 'Sent' });
       res.json({ success: true, message: 'Invoice sent successfully' });
     } else {
       res.status(500).json({ success: false, message: result.message });
