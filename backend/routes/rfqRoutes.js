@@ -1,15 +1,30 @@
 const express = require('express');
 const router = express.Router();
-const { getRFQs, getRFQ, createRFQ, updateRFQ, deleteRFQ } = require('../controllers/rfqController');
+const rfqController = require('../controllers/rfqController');
 const protect = require('../middleware/authMiddleware');
+const { body, validationResult } = require('express-validator');
 
-router.route('/')
-  .get(protect, getRFQs)
-  .post(protect, createRFQ);
+const validateRequest = (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ message: errors.array()[0].msg, errors: errors.array() });
+  }
+  next();
+};
 
-router.route('/:id')
-  .get(protect, getRFQ)
-  .put(protect, updateRFQ)
-  .delete(protect, deleteRFQ);
+router.post('/', protect, [
+  body('title').trim().notEmpty().withMessage('RFQ title is required'),
+  body('description').trim().notEmpty().withMessage('Description is required'),
+  body('deadline').isISO8601().toDate().withMessage('Valid deadline date is required'),
+  body('assignedVendors').isArray({ min: 1 }).withMessage('At least one vendor must be assigned'),
+  body('items').isArray({ min: 1 }).withMessage('At least one item is required'),
+  body('items.*.name').notEmpty().withMessage('Item name is required'),
+  body('items.*.quantity').isInt({ min: 1 }).withMessage('Quantity must be at least 1')
+], validateRequest, rfqController.createRFQ);
+
+router.get('/', protect, rfqController.getRFQs);
+router.get('/:id', protect, rfqController.getRFQ);
+router.put('/:id', protect, rfqController.updateRFQ);
+router.delete('/:id', protect, rfqController.deleteRFQ);
 
 module.exports = router;

@@ -18,7 +18,7 @@ const signup = async (req, res) => {
       name,
       email,
       password,
-      role: role || 'procurement-officer',
+      role: role || 'Procurement Officer',
     });
 
     const token = generateToken(user._id);

@@ -41,8 +41,8 @@ const vendorSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['active', 'inactive'],
-    default: 'active',
+    enum: ['Approved', 'Pending', 'Rejected'],
+    default: 'Pending',
   },
   rating: {
     type: Number,

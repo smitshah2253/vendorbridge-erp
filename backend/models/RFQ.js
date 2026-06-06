@@ -34,8 +34,8 @@ const rfqSchema = new mongoose.Schema({
   }],
   status: {
     type: String,
-    enum: ['draft', 'open', 'closed'],
-    default: 'draft',
+    enum: ['Draft', 'Open', 'Closed'],
+    default: 'Open',
   },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,

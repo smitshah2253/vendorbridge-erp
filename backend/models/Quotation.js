@@ -37,8 +37,8 @@ const quotationSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['submitted', 'pending', 'rejected', 'accepted'],
-    default: 'submitted',
+    enum: ['Submitted', 'Pending', 'Rejected', 'Approved'],
+    default: 'Pending',
   },
   submittedAt: {
     type: Date,
