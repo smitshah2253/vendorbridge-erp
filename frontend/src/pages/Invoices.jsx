@@ -11,7 +11,7 @@ const Invoices = () => {
   const fetchInvoices = async () => {
     try {
       const res = await api.get('/invoices');
-      setInvoices(res.data);
+      setInvoices(res.data.data || res.data);
     } catch (err) {
       console.error("Failed to fetch invoices", err);
     } finally {
@@ -23,19 +23,37 @@ const Invoices = () => {
     fetchInvoices();
   }, [user]);
 
-  const handlePrint = (invoiceNumber) => {
+  const handlePrint = () => {
     window.print();
   };
 
   const handleEmail = async (id) => {
     try {
-      await api.post(`/invoices/${id}/send`);
+      await api.post(`/invoices/${id}/email`);
       alert("Invoice sent successfully via email!");
     } catch(err) {
        console.error("Failed to send email", err);
        alert("Simulated email sending successful!"); // Fallback
     }
-  }
+  };
+
+  const handleDownloadPDF = async (id, invoiceNumber) => {
+    try {
+      const response = await api.get(`/invoices/${id}/pdf`, {
+        responseType: 'blob'
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `invoice-${invoiceNumber}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err) {
+      console.error("Failed to download PDF", err);
+      alert("Failed to download PDF. Please try again.");
+    }
+  };
 
   return (
     <div>
@@ -76,19 +94,19 @@ const Invoices = () => {
                 invoices.map(invoice => (
                   <tr key={invoice._id} className="hover:bg-gray-50 transition-colors">
                     <td className="p-4 font-medium text-gray-900 font-mono text-sm">{invoice.invoiceNumber}</td>
-                    <td className="p-4 text-gray-600 font-mono text-sm">{invoice.purchaseOrder?.poNumber || 'Unknown'}</td>
+                    <td className="p-4 text-gray-600 font-mono text-sm">{invoice.poId?.poNumber || 'Unknown'}</td>
                     <td className="p-4 font-semibold text-gray-800">${invoice.totalAmount?.toFixed(2)}</td>
-                    <td className="p-4 text-gray-600">${invoice.taxAmount?.toFixed(2)}</td>
+                    <td className="p-4 text-gray-600">${invoice.tax?.toFixed(2)}</td>
                     <td className="p-4">
                       <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${invoice.status === 'Paid' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
                         {invoice.status}
                       </span>
                     </td>
                     <td className="p-4 flex justify-end gap-2">
-                      <button className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors" title="Download PDF">
+                      <button className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors" title="Download PDF" onClick={() => handleDownloadPDF(invoice._id, invoice.invoiceNumber)}>
                         <Download size={18} />
                       </button>
-                      <button className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors" title="Print" onClick={() => handlePrint(invoice.invoiceNumber)}>
+                      <button className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors" title="Print" onClick={handlePrint}>
                         <Printer size={18} />
                       </button>
                       <button className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors" title="Email" onClick={() => handleEmail(invoice._id)}>

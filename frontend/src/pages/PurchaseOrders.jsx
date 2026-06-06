@@ -11,7 +11,7 @@ const PurchaseOrders = () => {
   const fetchPOs = async () => {
     try {
       const res = await api.get('/purchase-orders');
-      setPos(res.data);
+      setPos(res.data.data || res.data);
     } catch (err) {
       console.error("Failed to fetch purchase orders", err);
     } finally {
@@ -25,7 +25,7 @@ const PurchaseOrders = () => {
 
   const generateInvoice = async (poId) => {
     try {
-      await api.post('/invoices', { purchaseOrderId: poId });
+      await api.post('/invoices', { poId });
       alert('Invoice generated successfully!');
       // Navigate to invoices or refresh PO list if needed
     } catch (err) {
@@ -73,7 +73,7 @@ const PurchaseOrders = () => {
                 pos.map(po => (
                   <tr key={po._id} className="hover:bg-gray-50 transition-colors">
                     <td className="p-4 font-medium text-gray-900 font-mono text-sm">{po.poNumber}</td>
-                    <td className="p-4 text-gray-600">{po.rfq?.title || 'Unknown'}</td>
+                    <td className="p-4 text-gray-600">{po.quotationId?.rfqId?.title || 'Unknown'}</td>
                     <td className="p-4 text-gray-600">{po.vendor?.name || 'Unknown'}</td>
                     <td className="p-4 font-semibold text-gray-800">${po.totalAmount?.toFixed(2)}</td>
                     <td className="p-4">

@@ -1,5 +1,6 @@
 const PurchaseOrder = require('../models/PurchaseOrder');
 const Quotation = require('../models/Quotation');
+const logActivity = require('../utils/activityLogger');
 
 // @desc    Get all purchase orders
 // @route   GET /api/purchase-orders
@@ -10,7 +11,14 @@ const getPurchaseOrders = async (req, res) => {
 
     let query = {};
 
-    if (vendorId) {
+    if (req.user && req.user.role === 'Vendor') {
+      const Vendor = require('../models/Vendor');
+      const vendor = await Vendor.findOne({ email: req.user.email });
+      if (!vendor) {
+        return res.json({ success: true, count: 0, data: [] });
+      }
+      query.vendorId = vendor._id;
+    } else if (vendorId) {
       query.vendorId = vendorId;
     }
 
@@ -19,7 +27,12 @@ const getPurchaseOrders = async (req, res) => {
     }
 
     const purchaseOrders = await PurchaseOrder.find(query)
-      .populate('quotationId')
+      .populate({
+        path: 'quotationId',
+        populate: {
+          path: 'rfqId'
+        }
+      })
       .populate('vendorId')
       .sort({ createdAt: -1 });
 
@@ -39,11 +52,20 @@ const getPurchaseOrders = async (req, res) => {
 const getPurchaseOrder = async (req, res) => {
   try {
     const purchaseOrder = await PurchaseOrder.findById(req.params.id)
-      .populate('quotationId')
+      .populate({
+        path: 'quotationId',
+        populate: {
+          path: 'rfqId'
+        }
+      })
       .populate('vendorId');
 
     if (!purchaseOrder) {
       return res.status(404).json({ message: 'Purchase order not found' });
+    }
+
+    if (req.user && req.user.role === 'Vendor' && purchaseOrder.vendorId && purchaseOrder.vendorId.email !== req.user.email) {
+      return res.status(403).json({ message: 'Not authorized to view this purchase order' });
     }
 
     res.json({
@@ -55,12 +77,14 @@ const getPurchaseOrder = async (req, res) => {
   }
 };
 
-// @desc    Create purchase order from quotation
-// @route   POST /api/purchase-orders
-// @access  Private
 const createPurchaseOrder = async (req, res) => {
   try {
     const { quotationId } = req.body;
+
+    const existingPO = await PurchaseOrder.findOne({ quotationId });
+    if (existingPO) {
+      return res.status(400).json({ message: 'A Purchase Order has already been generated for this quotation.' });
+    }
 
     const quotation = await Quotation.findById(quotationId).populate('vendorId');
 
@@ -84,8 +108,31 @@ const createPurchaseOrder = async (req, res) => {
     });
 
     const populatedPO = await PurchaseOrder.findById(purchaseOrder._id)
-      .populate('quotationId')
+      .populate({
+        path: 'quotationId',
+        populate: {
+          path: 'rfqId'
+        }
+      })
       .populate('vendorId');
+
+    await logActivity(req.user.id, 'Generated', 'Purchase Order', purchaseOrder._id, {
+      poNumber: populatedPO.poNumber,
+      vendorName: populatedPO.vendorId?.name,
+      totalAmount
+    });
+
+    // Send email notification to vendor
+    const { sendPONotification } = require('../utils/emailService');
+    if (populatedPO.vendorId?.email) {
+      sendPONotification(
+        populatedPO.vendorId.email,
+        populatedPO.poNumber,
+        totalAmount
+      ).catch(err => {
+        console.error(`Failed to send PO notification to ${populatedPO.vendorId.email}:`, err);
+      });
+    }
 
     res.status(201).json({
       success: true,
@@ -105,7 +152,12 @@ const updatePurchaseOrder = async (req, res) => {
       new: true,
       runValidators: true,
     })
-      .populate('quotationId')
+      .populate({
+        path: 'quotationId',
+        populate: {
+          path: 'rfqId'
+        }
+      })
       .populate('vendorId');
 
     if (!purchaseOrder) {

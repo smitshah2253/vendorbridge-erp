@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const rfqController = require('../controllers/rfqController');
 const protect = require('../middleware/authMiddleware');
+const authorize = require('../middleware/roleMiddleware');
+const upload = require('../middleware/uploadMiddleware');
 const { body, validationResult } = require('express-validator');
 
 const validateRequest = (req, res, next) => {
@@ -12,7 +14,20 @@ const validateRequest = (req, res, next) => {
   next();
 };
 
-router.post('/', protect, [
+router.post('/upload', protect, authorize('Admin', 'Procurement Officer'), upload.single('file'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ message: 'No file uploaded' });
+  }
+  res.json({
+    success: true,
+    data: {
+      filename: req.file.originalname,
+      url: `/uploads/${req.file.filename}`
+    }
+  });
+});
+
+router.post('/', protect, authorize('Admin', 'Procurement Officer'), [
   body('title').trim().notEmpty().withMessage('RFQ title is required'),
   body('description').trim().notEmpty().withMessage('Description is required'),
   body('deadline').isISO8601().toDate().withMessage('Valid deadline date is required'),
@@ -24,7 +39,7 @@ router.post('/', protect, [
 
 router.get('/', protect, rfqController.getRFQs);
 router.get('/:id', protect, rfqController.getRFQ);
-router.put('/:id', protect, rfqController.updateRFQ);
-router.delete('/:id', protect, rfqController.deleteRFQ);
+router.put('/:id', protect, authorize('Admin', 'Procurement Officer'), rfqController.updateRFQ);
+router.delete('/:id', protect, authorize('Admin', 'Procurement Officer'), rfqController.deleteRFQ);
 
 module.exports = router;

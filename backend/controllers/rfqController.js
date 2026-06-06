@@ -1,4 +1,5 @@
 const RFQ = require('../models/RFQ');
+const logActivity = require('../utils/activityLogger');
 
 // @desc    Get all RFQs
 // @route   GET /api/rfqs
@@ -8,6 +9,15 @@ const getRFQs = async (req, res) => {
     const { status, search } = req.query;
 
     let query = {};
+
+    if (req.user && req.user.role === 'Vendor') {
+      const Vendor = require('../models/Vendor');
+      const vendor = await Vendor.findOne({ email: req.user.email });
+      if (!vendor) {
+        return res.json({ success: true, count: 0, data: [] });
+      }
+      query.assignedVendors = vendor._id;
+    }
 
     if (status) {
       query.status = status;
@@ -45,6 +55,13 @@ const getRFQ = async (req, res) => {
       return res.status(404).json({ message: 'RFQ not found' });
     }
 
+    if (req.user && req.user.role === 'Vendor') {
+      const isAssigned = rfq.assignedVendors.some(v => v.email === req.user.email);
+      if (!isAssigned) {
+        return res.status(403).json({ message: 'Not authorized to view this RFQ' });
+      }
+    }
+
     res.json({
       success: true,
       data: rfq,
@@ -67,6 +84,20 @@ const createRFQ = async (req, res) => {
     const populatedRFQ = await RFQ.findById(rfq._id)
       .populate('assignedVendors')
       .populate('createdBy', 'name email');
+
+    await logActivity(req.user.id, 'Created', 'RFQ', rfq._id, { title: rfq.title });
+
+    // Send email notifications to assigned vendors
+    const { sendRFQNotification } = require('../utils/emailService');
+    if (populatedRFQ.assignedVendors && populatedRFQ.assignedVendors.length > 0) {
+      for (const vendor of populatedRFQ.assignedVendors) {
+        if (vendor.email) {
+          sendRFQNotification(vendor.email, populatedRFQ.title, populatedRFQ.deadline).catch(err => {
+            console.error(`Failed to send RFQ notification to ${vendor.email}:`, err);
+          });
+        }
+      }
+    }
 
     res.status(201).json({
       success: true,
@@ -93,6 +124,8 @@ const updateRFQ = async (req, res) => {
       return res.status(404).json({ message: 'RFQ not found' });
     }
 
+    await logActivity(req.user.id, 'Updated', 'RFQ', rfq._id, { title: rfq.title });
+
     res.json({
       success: true,
       data: rfq,
@@ -112,6 +145,8 @@ const deleteRFQ = async (req, res) => {
     if (!rfq) {
       return res.status(404).json({ message: 'RFQ not found' });
     }
+
+    await logActivity(req.user.id, 'Deleted', 'RFQ', rfq._id, { title: rfq.title });
 
     res.json({
       success: true,

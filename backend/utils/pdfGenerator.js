@@ -5,10 +5,20 @@ const path = require('path');
 const generateInvoicePDF = async (invoice, vendor) => {
   return new Promise((resolve, reject) => {
     try {
-      const doc = new PDFDocument({ margin: 50, size: 'A4' });
-      const filePath = path.join(__dirname, '../uploads', `invoice-${invoice.invoiceNumber}.pdf`);
+      const uploadDir = path.join(__dirname, '../uploads');
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+      }
+      const filePath = path.join(uploadDir, `invoice-${invoice.invoiceNumber}.pdf`);
       
-      doc.pipe(fs.createWriteStream(filePath));
+      const doc = new PDFDocument({ margin: 50, size: 'A4' });
+      const writeStream = fs.createWriteStream(filePath);
+      
+      writeStream.on('finish', () => resolve(filePath));
+      writeStream.on('error', (err) => reject(err));
+      doc.on('error', (err) => reject(err));
+
+      doc.pipe(writeStream);
 
       // Header
       doc.fontSize(20).font('Helvetica-Bold').text('INVOICE', { align: 'center' });
@@ -85,8 +95,6 @@ const generateInvoicePDF = async (invoice, vendor) => {
       doc.text('This is a computer-generated invoice.', { align: 'center' });
 
       doc.end();
-
-      resolve(filePath);
     } catch (error) {
       reject(error);
     }

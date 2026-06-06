@@ -1,5 +1,6 @@
 const Invoice = require('../models/Invoice');
 const PurchaseOrder = require('../models/PurchaseOrder');
+const logActivity = require('../utils/activityLogger');
 
 // @desc    Get all invoices
 // @route   GET /api/invoices
@@ -10,7 +11,14 @@ const getInvoices = async (req, res) => {
 
     let query = {};
 
-    if (vendorId) {
+    if (req.user && req.user.role === 'Vendor') {
+      const Vendor = require('../models/Vendor');
+      const vendor = await Vendor.findOne({ email: req.user.email });
+      if (!vendor) {
+        return res.json({ success: true, count: 0, data: [] });
+      }
+      query.vendorId = vendor._id;
+    } else if (vendorId) {
       query.vendorId = vendorId;
     }
 
@@ -46,6 +54,10 @@ const getInvoice = async (req, res) => {
       return res.status(404).json({ message: 'Invoice not found' });
     }
 
+    if (req.user && req.user.role === 'Vendor' && invoice.vendorId && invoice.vendorId.email !== req.user.email) {
+      return res.status(403).json({ message: 'Not authorized to view this invoice' });
+    }
+
     res.json({
       success: true,
       data: invoice,
@@ -55,12 +67,14 @@ const getInvoice = async (req, res) => {
   }
 };
 
-// @desc    Create invoice from purchase order
-// @route   POST /api/invoices
-// @access  Private
 const createInvoice = async (req, res) => {
   try {
     const { poId, dueDate } = req.body;
+
+    const existingInvoice = await Invoice.findOne({ poId });
+    if (existingInvoice) {
+      return res.status(400).json({ message: 'An Invoice has already been generated for this Purchase Order.' });
+    }
 
     const purchaseOrder = await PurchaseOrder.findById(poId).populate('vendorId');
 
@@ -83,6 +97,12 @@ const createInvoice = async (req, res) => {
     const populatedInvoice = await Invoice.findById(invoice._id)
       .populate('poId')
       .populate('vendorId');
+
+    await logActivity(req.user.id, 'Generated', 'Invoice', invoice._id, {
+      invoiceNumber: populatedInvoice.invoiceNumber,
+      vendorName: populatedInvoice.vendorId?.name,
+      totalAmount: populatedInvoice.totalAmount
+    });
 
     res.status(201).json({
       success: true,

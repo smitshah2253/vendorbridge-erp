@@ -32,6 +32,16 @@ const rfqSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Vendor',
   }],
+  attachments: [{
+    filename: {
+      type: String,
+      required: true,
+    },
+    url: {
+      type: String,
+      required: true,
+    },
+  }],
   status: {
     type: String,
     enum: ['Draft', 'Open', 'Closed'],

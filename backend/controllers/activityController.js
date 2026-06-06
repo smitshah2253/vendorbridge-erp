@@ -9,12 +9,50 @@ const getActivityLogs = async (req, res) => {
 
     let query = {};
 
-    if (userId) {
-      query.userId = userId;
-    }
+    if (req.user && req.user.role === 'Vendor') {
+      const Vendor = require('../models/Vendor');
+      const Quotation = require('../models/Quotation');
+      const PurchaseOrder = require('../models/PurchaseOrder');
+      const Invoice = require('../models/Invoice');
 
-    if (entity) {
-      query.entity = entity;
+      const vendor = await Vendor.findOne({ email: req.user.email });
+      if (!vendor) {
+        return res.json({ success: true, count: 0, data: [] });
+      }
+
+      // Find all entity IDs belonging to this vendor
+      const [quotes, pos, invoices] = await Promise.all([
+        Quotation.find({ vendorId: vendor._id }).select('_id'),
+        PurchaseOrder.find({ vendorId: vendor._id }).select('_id'),
+        Invoice.find({ vendorId: vendor._id }).select('_id')
+      ]);
+
+      const quoteIds = quotes.map(q => q._id);
+      const poIds = pos.map(p => p._id);
+      const invoiceIds = invoices.map(i => i._id);
+
+      // Build the $or conditions for Vendor visibility
+      query.$or = [
+        { userId: req.user._id },
+        { entity: 'Vendor', entityId: vendor._id },
+        { entity: 'Quotation', entityId: { $in: quoteIds } },
+        { entity: 'Purchase Order', entityId: { $in: poIds } },
+        { entity: 'Invoice', entityId: { $in: invoiceIds } }
+      ];
+
+      if (userId) {
+        query.userId = userId;
+      }
+      if (entity) {
+        query.entity = entity;
+      }
+    } else {
+      if (userId) {
+        query.userId = userId;
+      }
+      if (entity) {
+        query.entity = entity;
+      }
     }
 
     const logs = await ActivityLog.find(query)
@@ -63,17 +101,50 @@ const createActivityLog = async (req, res) => {
 // @access  Private
 const getAnalytics = async (req, res) => {
   try {
-    // This would typically aggregate data from various collections
-    // For now, returning mock data structure
+    const Invoice = require('../models/Invoice');
+
+    const totalSpendingRes = await Invoice.aggregate([
+      { $group: { _id: null, total: { $sum: '$totalAmount' } } }
+    ]);
+    const totalSpending = totalSpendingRes.length > 0 ? totalSpendingRes[0].total : 0;
+
+    const spendingTrends = await Invoice.aggregate([
+      {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m', date: '$createdAt' } },
+          total: { $sum: '$totalAmount' }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ]);
+
+    const spendByCategory = await Invoice.aggregate([
+      {
+        $lookup: {
+          from: 'vendors',
+          localField: 'vendorId',
+          foreignField: '_id',
+          as: 'vendor'
+        }
+      },
+      { $unwind: '$vendor' },
+      {
+        $group: {
+          _id: '$vendor.category',
+          total: { $sum: '$totalAmount' }
+        }
+      }
+    ]);
+
     const analytics = {
       totalVendors: await require('../models/Vendor').countDocuments(),
       totalRFQs: await require('../models/RFQ').countDocuments(),
       totalQuotations: await require('../models/Quotation').countDocuments(),
       totalInvoices: await require('../models/Invoice').countDocuments(),
       pendingApprovals: await require('../models/Approval').countDocuments({ status: 'Pending' }),
-      totalSpending: await require('../models/Invoice').aggregate([
-        { $group: { _id: null, total: { $sum: '$totalAmount' } } }
-      ]),
+      totalSpending,
+      spendingTrends,
+      spendByCategory,
     };
 
     res.json({

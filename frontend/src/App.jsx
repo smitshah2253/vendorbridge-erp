@@ -15,6 +15,7 @@ import Approvals from './pages/Approvals';
 import PurchaseOrders from './pages/PurchaseOrders';
 import Invoices from './pages/Invoices';
 import Reports from './pages/Reports';
+import ActivityLogs from './pages/ActivityLogs';
 
 import './index.css';
 
@@ -30,14 +31,34 @@ function App() {
           <Route element={<ProtectedRoute />}>
             <Route element={<Layout />}>
               <Route path="/" element={<Dashboard />} />
-              <Route path="/vendors" element={<Vendors />} />
-              <Route path="/rfqs" element={<RFQs />} />
-              <Route path="/quotations" element={<Quotations />} />
-              <Route path="/approvals" element={<Approvals />} />
-              <Route path="/purchase-orders" element={<PurchaseOrders />} />
-              <Route path="/invoices" element={<Invoices />} />
-              <Route path="/reports" element={<Reports />} />
-              {/* Other routes will go here */}
+              <Route path="/activity-logs" element={<ActivityLogs />} />
+              
+              {/* Procurement Officer / Admin only */}
+              <Route element={<ProtectedRoute allowedRoles={['Procurement Officer', 'Admin']} />}>
+                <Route path="/vendors" element={<Vendors />} />
+              </Route>
+
+              {/* All logged-in users */}
+              <Route element={<ProtectedRoute allowedRoles={['Procurement Officer', 'Vendor', 'Manager', 'Admin']} />}>
+                <Route path="/rfqs" element={<RFQs />} />
+              </Route>
+
+              {/* Procurement Officer / Vendor / Manager */}
+              <Route element={<ProtectedRoute allowedRoles={['Procurement Officer', 'Vendor', 'Manager']} />}>
+                <Route path="/quotations" element={<Quotations />} />
+                <Route path="/purchase-orders" element={<PurchaseOrders />} />
+                <Route path="/invoices" element={<Invoices />} />
+              </Route>
+
+              {/* Manager only */}
+              <Route element={<ProtectedRoute allowedRoles={['Manager']} />}>
+                <Route path="/approvals" element={<Approvals />} />
+              </Route>
+
+              {/* Non-Vendor users */}
+              <Route element={<ProtectedRoute allowedRoles={['Procurement Officer', 'Admin', 'Manager']} />}>
+                <Route path="/reports" element={<Reports />} />
+              </Route>
             </Route>
           </Route>
 

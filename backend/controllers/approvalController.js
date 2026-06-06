@@ -19,7 +19,10 @@ const getApprovals = async (req, res) => {
     }
 
     const approvals = await Approval.find(query)
-      .populate('quotationId')
+      .populate({
+        path: 'quotationId',
+        populate: { path: 'vendorId' }
+      })
       .populate('rfqId')
       .populate('approverId', 'name email')
       .sort({ createdAt: -1 });
@@ -40,7 +43,10 @@ const getApprovals = async (req, res) => {
 const getApproval = async (req, res) => {
   try {
     const approval = await Approval.findById(req.params.id)
-      .populate('quotationId')
+      .populate({
+        path: 'quotationId',
+        populate: { path: 'vendorId' }
+      })
       .populate('rfqId')
       .populate('approverId', 'name email');
 
@@ -71,7 +77,10 @@ const createApproval = async (req, res) => {
     });
 
     const populatedApproval = await Approval.findById(approval._id)
-      .populate('quotationId')
+      .populate({
+        path: 'quotationId',
+        populate: { path: 'vendorId' }
+      })
       .populate('rfqId')
       .populate('approverId', 'name email');
 
@@ -100,7 +109,10 @@ const approveQuotation = async (req, res) => {
       },
       { new: true }
     )
-      .populate('quotationId')
+      .populate({
+        path: 'quotationId',
+        populate: { path: 'vendorId' }
+      })
       .populate('rfqId')
       .populate('approverId', 'name email');
 
@@ -108,8 +120,24 @@ const approveQuotation = async (req, res) => {
       return res.status(404).json({ message: 'Approval not found' });
     }
 
+    if (!approval.quotationId) {
+      return res.status(400).json({ message: 'The quotation associated with this approval request has been deleted.' });
+    }
+
     // Update quotation status
     await Quotation.findByIdAndUpdate(approval.quotationId._id, { status: 'Approved' });
+
+    // Send email notification to vendor
+    const { sendQuotationStatusNotification } = require('../utils/emailService');
+    if (approval.quotationId?.vendorId?.email) {
+      sendQuotationStatusNotification(
+        approval.quotationId.vendorId.email,
+        approval.rfqId?.title || 'RFQ',
+        'Approved'
+      ).catch(err => {
+        console.error('Failed to send approval notification:', err);
+      });
+    }
 
     res.json({
       success: true,
@@ -136,7 +164,10 @@ const rejectQuotation = async (req, res) => {
       },
       { new: true }
     )
-      .populate('quotationId')
+      .populate({
+        path: 'quotationId',
+        populate: { path: 'vendorId' }
+      })
       .populate('rfqId')
       .populate('approverId', 'name email');
 
@@ -144,8 +175,24 @@ const rejectQuotation = async (req, res) => {
       return res.status(404).json({ message: 'Approval not found' });
     }
 
+    if (!approval.quotationId) {
+      return res.status(400).json({ message: 'The quotation associated with this approval request has been deleted.' });
+    }
+
     // Update quotation status
     await Quotation.findByIdAndUpdate(approval.quotationId._id, { status: 'Rejected' });
+
+    // Send email notification to vendor
+    const { sendQuotationStatusNotification } = require('../utils/emailService');
+    if (approval.quotationId?.vendorId?.email) {
+      sendQuotationStatusNotification(
+        approval.quotationId.vendorId.email,
+        approval.rfqId?.title || 'RFQ',
+        'Rejected'
+      ).catch(err => {
+        console.error('Failed to send rejection notification:', err);
+      });
+    }
 
     res.json({
       success: true,

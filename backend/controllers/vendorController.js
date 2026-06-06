@@ -1,4 +1,5 @@
 const Vendor = require('../models/Vendor');
+const logActivity = require('../utils/activityLogger');
 
 // @desc    Get all vendors
 // @route   GET /api/vendors
@@ -9,20 +10,24 @@ const getVendors = async (req, res) => {
 
     let query = {};
 
-    if (search) {
-      query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
-        { gstNumber: { $regex: search, $options: 'i' } },
-      ];
-    }
+    if (req.user && req.user.role === 'Vendor') {
+      query.email = req.user.email;
+    } else {
+      if (search) {
+        query.$or = [
+          { name: { $regex: search, $options: 'i' } },
+          { email: { $regex: search, $options: 'i' } },
+          { gstNumber: { $regex: search, $options: 'i' } },
+        ];
+      }
 
-    if (status) {
-      query.status = status;
-    }
+      if (status) {
+        query.status = status;
+      }
 
-    if (category) {
-      query.category = { $regex: category, $options: 'i' };
+      if (category) {
+        query.category = { $regex: category, $options: 'i' };
+      }
     }
 
     const vendors = await Vendor.find(query).sort({ createdAt: -1 });
@@ -48,6 +53,10 @@ const getVendor = async (req, res) => {
       return res.status(404).json({ message: 'Vendor not found' });
     }
 
+    if (req.user && req.user.role === 'Vendor' && vendor.email !== req.user.email) {
+      return res.status(403).json({ message: 'Not authorized to view this vendor profile' });
+    }
+
     res.json({
       success: true,
       data: vendor,
@@ -63,6 +72,8 @@ const getVendor = async (req, res) => {
 const createVendor = async (req, res) => {
   try {
     const vendor = await Vendor.create(req.body);
+
+    await logActivity(req.user.id, 'Registered', 'Vendor', vendor._id, { name: vendor.name });
 
     res.status(201).json({
       success: true,
@@ -87,6 +98,8 @@ const updateVendor = async (req, res) => {
       return res.status(404).json({ message: 'Vendor not found' });
     }
 
+    await logActivity(req.user.id, 'Updated', 'Vendor', vendor._id, { name: vendor.name });
+
     res.json({
       success: true,
       data: vendor,
@@ -106,6 +119,8 @@ const deleteVendor = async (req, res) => {
     if (!vendor) {
       return res.status(404).json({ message: 'Vendor not found' });
     }
+
+    await logActivity(req.user.id, 'Deleted', 'Vendor', vendor._id, { name: vendor.name });
 
     res.json({
       success: true,

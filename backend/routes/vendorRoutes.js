@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const vendorController = require('../controllers/vendorController');
 const protect = require('../middleware/authMiddleware');
+const authorize = require('../middleware/roleMiddleware');
 const { body, validationResult } = require('express-validator');
 
 const validateRequest = (req, res, next) => {
@@ -12,7 +13,7 @@ const validateRequest = (req, res, next) => {
   next();
 };
 
-router.post('/', protect, [
+router.post('/', protect, authorize('Admin', 'Procurement Officer'), [
   body('name').trim().notEmpty().withMessage('Vendor name is required'),
   body('email').isEmail().withMessage('Valid email is required'),
   body('phone').trim().notEmpty().withMessage('Phone is required'),
@@ -23,7 +24,7 @@ router.post('/', protect, [
 
 router.get('/', protect, vendorController.getVendors);
 router.get('/:id', protect, vendorController.getVendor);
-router.put('/:id', protect, vendorController.updateVendor);
-router.delete('/:id', protect, vendorController.deleteVendor);
+router.put('/:id', protect, authorize('Admin', 'Procurement Officer'), vendorController.updateVendor);
+router.delete('/:id', protect, authorize('Admin', 'Procurement Officer'), vendorController.deleteVendor);
 
 module.exports = router;
